@@ -1,0 +1,150 @@
+/*
+* Ultrasonic Sensor HC-SR04 and Arduino Tutorial
+*
+* by Dejan Nedelkovski,
+* www.HowToMechatronics.com
+*
+*/
+// defines pins numbers
+const int trigPin = 12;
+const int echoPin = 13;
+const int led =  8;
+const int buzzer = 4;
+
+const int NB_ELEMENTS_MEAN = 75;
+int buffer_cond[NB_ELEMENTS_MEAN];
+int idx_buffer_cond = 0;
+int cond = 0;
+float moyenne;
+int i;
+
+
+// defining notes to play
+const int c = 261;
+const int d = 294;
+const int e = 329;
+const int f = 349;
+const int g = 391;
+const int gS = 415;
+const int a = 440;
+const int aS = 455;
+const int b = 466;
+const int cH = 523;
+const int cSH = 554;
+const int dH = 587;
+const int dSH = 622;
+const int eH = 659;
+const int fH = 698;
+const int fSH = 740;
+const int gH = 784;
+const int gSH = 830;
+const int aH = 880;
+
+// start time of last note
+unsigned long StartTime = millis();
+
+// list of note to play
+int durations[] = {500,500,500,350,150,500,350,150,650,450,500,500,500,350,150,500,350,150,650,450,500,300,150,500,325,175,125,125,250,275,250,500,325,175,125,125,250,300,250,500,350,125,500,375,125,650,450,500,300,150,500,325,175,125,125,250,275,250,500,325,175,125,125,250,300,250,500,375,125,500,375,125,650,600};
+int current_duration = 0;
+int notes[] = {a,a,a,f,cH,a,f,cH,a,0,eH,eH,eH,fH,cH,gS,fH,cH,a,0,aH,a,a,aH,gSH,gH,fSH,fH,fSH,0,aS,dSH,dH,cSH,cH,b,cH,0,f,gS,f,a,cH,a,cH,eH,0,aH,a,a,aH,gSH,gH,fSH,fH,fSH,0,aS,dSH,dH,cSH,cH,b,cH,0,f,gS,f,cH,a,f,cH,a,0};
+int len_star_wars = 74;
+  
+// defines variables
+long duration;
+float distance;
+void setup() {
+pinMode(trigPin, OUTPUT); // Sets the trigPin as an Output
+pinMode(echoPin, INPUT); // Sets the echoPin as an Input
+pinMode(led, OUTPUT); // Sets the led as a led
+pinMode(buzzer, OUTPUT);
+Serial.begin(9600); // Starts the serial communication
+}
+
+void beenp(int note);
+void beep(int note, int duration)
+{
+    if(note != 0)
+        tone(buzzer, note, duration);
+}
+
+// definition of a context for playing the song. Holds the state of the song.
+int is_song_playing = 0;
+
+struct song_context_str {
+  int cpt;
+};
+typedef struct song_context_str song_context_str;
+song_context_str song_context;
+
+int reset_song(song_context_str * song_context);
+int reset_song (song_context_str * song_context){
+  song_context->cpt = 0;
+  return 1;
+}
+
+int play_song(song_context_str * song_context);
+int play_song(song_context_str * song_context){
+  if (is_song_playing){  
+
+      if(millis() - StartTime >= current_duration)
+      {
+            StartTime = millis();
+            beep(notes[song_context->cpt],durations[song_context->cpt]);
+            current_duration = durations[song_context->cpt];
+            song_context->cpt++;
+        }
+      
+        if (song_context->cpt >= len_star_wars)
+            song_context->cpt = 0;
+      
+       }
+       else{
+            reset_song(song_context);
+       }
+
+};
+
+
+void loop() {
+digitalWrite(trigPin, LOW);
+delayMicroseconds(2);
+// Sets the trigPin on HIGH state for 10 micro seconds
+digitalWrite(trigPin, HIGH);
+delayMicroseconds(10);
+digitalWrite(trigPin, LOW);
+// Reads the echoPin, returns the sound wave travel time in microseconds
+duration = pulseIn(echoPin, HIGH);
+// Calculating the distance
+distance= duration*0.034/2;
+// Prints the distance on the Serial Monitor
+Serial.print("moyenne: ");
+
+cond = distance > 4.55;
+buffer_cond[idx_buffer_cond] = cond;
+
+
+if (moyenne > 0.2)
+{
+    is_song_playing = 1;
+    digitalWrite(led, HIGH);
+    
+}
+else
+{
+    is_song_playing = 0;
+    digitalWrite(led, LOW);   
+}
+
+play_song(&song_context);
+
+idx_buffer_cond++;
+if (idx_buffer_cond >= NB_ELEMENTS_MEAN){
+      idx_buffer_cond = 0;
+      moyenne = 0;
+      for (i = 0; i < NB_ELEMENTS_MEAN; i++)
+          moyenne += buffer_cond[i];
+      moyenne /= NB_ELEMENTS_MEAN;
+      Serial.print(moyenne);
+  }
+
+}
